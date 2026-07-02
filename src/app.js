@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const { admin, db } = require('./config/firebaseAdmin');
 
 const app = express();
 
@@ -25,6 +26,42 @@ app.get('/health', (req, res) => {
     status: 'ok',
     service: 'Responza Backend'
   });
+});
+
+// GET /firebase-test Endpoint
+app.get('/firebase-test', async (req, res) => {
+  try {
+    if (!admin || !db) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Firebase Admin or Firestore has not been initialized successfully.'
+      });
+    }
+
+    // Perform a write-then-read operation to test connectivity and write permissions
+    const testDocRef = db.collection('test_connection').doc('ping');
+    await testDocRef.set({
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      ping: 'pong'
+    });
+    
+    const docSnap = await testDocRef.get();
+    
+    if (!docSnap.exists) {
+      throw new Error('Firestore connection check failed: document write/read cycle failed.');
+    }
+
+    res.status(200).json({
+      status: 'connected',
+      service: 'Firebase Admin'
+    });
+  } catch (error) {
+    console.error('[Firebase Test] Connection test failed:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message || 'Firebase Admin connection failed.'
+    });
+  }
 });
 
 // Fallback 404 handler

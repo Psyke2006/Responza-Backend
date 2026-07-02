@@ -18,3 +18,6 @@ logs/
 # OS Metadata
 .DS_Store
 Thumbs.db
+
+# Firebase Service Account
+responza-a8c58-firebase-adminsdk-fbsvc-6234af2a04.json
