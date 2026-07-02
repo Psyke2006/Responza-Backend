@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { admin, db } = require('./config/firebaseAdmin');
+const deviceRoutes = require('./routes/deviceRoutes');
 
 const app = express();
 
@@ -63,6 +64,9 @@ app.get('/firebase-test', async (req, res) => {
     });
   }
 });
+
+// Register Device API Routes
+app.use('/api/device', deviceRoutes);
 
 // Fallback 404 handler
 app.use((req, res, next) => {
