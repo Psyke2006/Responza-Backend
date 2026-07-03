@@ -12,7 +12,7 @@ async function sendTestNotification(uid) {
   }
 
   // Load the user document from Firestore
-  console.log(`[Notification Service] Loading token for user UID: ${uid}`);
+  console.log('[FCM] Loading device token...');
   const userDocRef = db.collection('users').doc(uid);
   const userDocSnap = await userDocRef.get();
 
@@ -21,6 +21,8 @@ async function sendTestNotification(uid) {
     error.statusCode = 404;
     throw error;
   }
+
+  console.log('[FCM] User located');
 
   const userData = userDocSnap.data();
   const fcmToken = userData?.device?.fcmToken;
@@ -31,7 +33,12 @@ async function sendTestNotification(uid) {
     throw error;
   }
 
-  console.log(`[Notification Service] Found FCM token: ${fcmToken.substring(0, 10)}...`);
+  const maskedToken = fcmToken.length > 16 
+    ? `${fcmToken.substring(0, 8)}...${fcmToken.substring(fcmToken.length - 8)}`
+    : '***';
+  console.log(`[FCM] Device token located: ${maskedToken}`);
+
+  console.log('[FCM] Preparing payload');
 
   // Build the FCM notification payload
   const message = {
@@ -46,9 +53,12 @@ async function sendTestNotification(uid) {
     token: fcmToken
   };
 
-  console.log('[Notification Service] Sending message via Firebase Messaging API...');
+  console.log('[FCM] Sending notification...');
   const messageId = await admin.messaging().send(message);
-  console.log(`[Notification Service] Notification sent successfully. Message ID: ${messageId}`);
+  
+  console.log('[FCM] Firebase accepted notification');
+  console.log(`[FCM] Message ID: ${messageId}`);
+  console.log('[FCM] Notification request complete');
 
   return messageId;
 }
