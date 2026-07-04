@@ -31,7 +31,7 @@ async function sendAlertNotifications(senderUid, alertId) {
 
   // 2. Load trusted contacts
   console.log('[ALERT] Loading trusted contacts');
-  const contactsCollectionRef = db.collection('users').doc(senderUid).collection('trustedContacts');
+  const contactsCollectionRef = db.collection('users').doc(senderUid).collection('contacts');
   const contactsSnap = await contactsCollectionRef.get();
 
   const contactsFound = contactsSnap.size;
