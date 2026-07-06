@@ -4,34 +4,53 @@ const fs = require('fs');
 
 let firestoreInstance = null;
 
-// Read the service account path from the environment variable
-const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
+const projectId = process.env.FIREBASE_PROJECT_ID;
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-if (!serviceAccountPath) {
-  console.error('[Firebase Admin] Error: FIREBASE_SERVICE_ACCOUNT environment variable is not defined.');
-} else {
+// Check if credentials are provided via direct environment variables (preferred for production)
+if (projectId && clientEmail && privateKey) {
   try {
-    // Resolve the path relative to the process working directory
-    const resolvedPath = path.resolve(process.cwd(), serviceAccountPath);
-    
-    if (!fs.existsSync(resolvedPath)) {
-      throw new Error(`File does not exist at resolved path: ${resolvedPath}`);
-    }
-
-    // Load the service account configuration
-    const serviceAccount = require(resolvedPath);
-
-    // Initialize Firebase Admin only once
     if (!admin.apps.length) {
+      // Correctly handle escaped newlines in the private key
+      const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+      
       admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey: formattedPrivateKey
+        })
       });
-      console.log('[Firebase Admin] Initialized successfully using credentials.');
+      console.log('[Firebase Admin] Initialized successfully using environment variables.');
     }
-
     firestoreInstance = admin.firestore();
   } catch (error) {
-    console.error('[Firebase Admin] Initialization failed:', error.message);
+    console.error('[Firebase Admin] Initialization failed using environment variables:', error.message);
+  }
+} else {
+  // Local fallback: Load from service account path (if defined)
+  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!serviceAccountPath) {
+    console.error('[Firebase Admin] Error: Firebase credentials are not configured in environment variables.');
+  } else {
+    try {
+      const resolvedPath = path.resolve(process.cwd(), serviceAccountPath);
+      if (!fs.existsSync(resolvedPath)) {
+        throw new Error(`File does not exist at resolved path: ${resolvedPath}`);
+      }
+
+      const serviceAccount = require(resolvedPath);
+      if (!admin.apps.length) {
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount)
+        });
+        console.log('[Firebase Admin] Initialized successfully using credentials.');
+      }
+      firestoreInstance = admin.firestore();
+    } catch (error) {
+      console.error('[Firebase Admin] Initialization failed using credentials file:', error.message);
+    }
   }
 }
 
