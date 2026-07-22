@@ -57,6 +57,7 @@ async function sendAlertNotifications(senderUid, alertId) {
   // Resolve users & device tokens for all contacts
   const targetTokens = [];
   const contactsList = contactsSnap.docs;
+  const resolvedRecipientUids = [];
 
   for (let i = 0; i < contactsList.length; i++) {
     const contactDoc = contactsList[i];
@@ -97,6 +98,10 @@ async function sendAlertNotifications(senderUid, alertId) {
         }
       }
 
+      if (resolvedUser && resolvedUser.uid) {
+        resolvedRecipientUids.push(resolvedUser.uid);
+      }
+
       const fcmToken = resolvedUser?.device?.fcmToken;
 
       if (fcmToken && typeof fcmToken === 'string' && fcmToken.trim()) {
@@ -109,6 +114,31 @@ async function sendAlertNotifications(senderUid, alertId) {
     } catch (resolveErr) {
       console.warn(`[ALERT] Error resolving contact index ${i + 1} (${contactDoc.id}):`, resolveErr.message);
     }
+  }
+
+  // Update the Firestore alert document with the full set of resolved recipient UIDs
+  console.log('=== [ALERT SERVICE DIAGNOSTICS: BEFORE UPDATE] ===');
+  console.log(`- alertId: "${alertId}"`);
+  console.log(`- recipientUids to write:`, resolvedRecipientUids);
+  console.log('==================================================');
+
+  if (resolvedRecipientUids.length > 0) {
+    try {
+      const alertDocRef = db.collection('alerts').doc(alertId);
+      // Use union to combine any client-provided UIDs with backend-resolved UIDs
+      await alertDocRef.update({
+        recipientUids: admin.firestore.FieldValue.arrayUnion(...resolvedRecipientUids)
+      });
+      console.log('=== [ALERT SERVICE DIAGNOSTICS: SUCCESS] ===');
+      console.log(`alertId: "${alertId}"`);
+      console.log(`recipientUids:`, resolvedRecipientUids);
+      console.log(`Firestore update success`);
+      console.log('=============================================');
+    } catch (dbErr) {
+      console.error(`[ALERT SERVICE DIAGNOSTICS: ERROR] Failed to update alert document ${alertId} with recipientUids:`, dbErr.message);
+    }
+  } else {
+    console.warn(`[ALERT SERVICE DIAGNOSTICS: WARNING] No resolvedRecipientUids to write. Skipping update.`);
   }
 
   // 4. Dispatch messages
